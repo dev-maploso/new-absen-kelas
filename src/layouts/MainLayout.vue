@@ -5,7 +5,7 @@ import AppNavbar from "@/components/layout/AppNavbar.vue";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppOverlay from "@/components/layout/AppOverlay.vue";
 
-import { useLayoutStore } from "@/store/layout";
+import { useLayoutStore } from "@/stores/layout";
 
 const layout = useLayoutStore();
 

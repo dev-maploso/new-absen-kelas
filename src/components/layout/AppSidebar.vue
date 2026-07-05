@@ -4,7 +4,7 @@ import { computed } from "vue";
 import AppLogo from "./AppLogo.vue";
 import AppMenu from "./AppMenu.vue";
 
-import { useLayoutStore } from "@/store/layout";
+import { useLayoutStore } from "@/stores/layout.ts";
 
 const layout = useLayoutStore();
 

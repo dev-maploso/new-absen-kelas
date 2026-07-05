@@ -11,7 +11,7 @@ const pinia = createPinia();
 
 app.use(pinia);
 
-const { useAuthStore } = await import("@/store/auth");
+const { useAuthStore } = await import("@/stores/auth.ts");
 
 const auth = useAuthStore();
 

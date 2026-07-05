@@ -1,11 +1,25 @@
 import { defineStore } from "pinia";
 import AuthService from "@/services/auth.service";
 
+export interface Kelas {
+  id: number;
+  wali_kelas_id: number;
+  nama_kelas: string;
+  kode_kelas: string;
+  fraksi_id: number;
+  semester_id: number;
+  tahun_ajaran_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface User {
   id: number;
   name: string;
   email: string;
   roles: string[];
+
+  kelas: Kelas[];
 }
 
 interface AuthState {
@@ -29,6 +43,16 @@ export const useAuthStore = defineStore("auth", {
 
     isMimin: (state) =>
       state.user?.roles.includes("mimin") ?? false,
+
+    /**
+     * Seluruh kelas yang diampu user
+     */
+    kelas: (state) => state.user?.kelas ?? [],
+
+    /**
+     * Default kelas pertama
+     */
+    defaultKelas: (state) => state.user?.kelas?.[0] ?? null,
   },
 
   actions: {

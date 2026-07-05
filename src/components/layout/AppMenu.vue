@@ -8,7 +8,7 @@ import {
 
 import { RouterLink, useRoute } from "vue-router";
 
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore } from "@/stores/auth";
 
 defineProps<{
   collapsed: boolean;

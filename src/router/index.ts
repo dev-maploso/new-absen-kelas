@@ -59,7 +59,7 @@ const router = createRouter({
           path: "attendance",
           name: "attendance",
           component: () =>
-            import("@/views/attendance/AttendanceListView.vue"),
+            import("@/views/attendance/AttendanceView.vue"),
 
           meta: {
             title: "Absensi",

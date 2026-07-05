@@ -3,8 +3,8 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { Menu } from "lucide-vue-next";
 
-import { useAuthStore } from "@/store/auth";
-import { useLayoutStore } from "@/store/layout";
+import { useAuthStore } from "@/stores/auth";
+import { useLayoutStore } from "@/stores/layout";
 
 const auth = useAuthStore();
 const layout = useLayoutStore();

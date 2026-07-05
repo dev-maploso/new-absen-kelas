@@ -1,5 +1,5 @@
 import type { Router } from "vue-router";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore } from "@/stores/auth";
 
 export function setupRouterGuards(router: Router) {
 
