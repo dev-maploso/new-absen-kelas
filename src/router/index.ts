@@ -67,17 +67,6 @@ const router = createRouter({
         },
 
         {
-          path: "attendance/:id",
-          name: "attendance-detail",
-          component: () =>
-            import("@/views/attendance/AttendanceDetailView.vue"),
-
-          meta: {
-            title: "Detail Absensi",
-          },
-        },
-
-        {
           path: "profile",
           name: "profile",
           component: () =>
