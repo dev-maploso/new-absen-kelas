@@ -3,6 +3,8 @@ export type AttendanceStatus = "hadir" | "izin" | "sakit" | "alpha";
 export interface AttendanceItem {
   registrasi_kelas_id: number;
 
+   hidden?: boolean;
+
   mahasantri: Mahasantri;
 
   attendance: {

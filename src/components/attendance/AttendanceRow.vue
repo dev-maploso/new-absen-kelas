@@ -55,8 +55,6 @@ async function setStatus(status: AttendanceStatus) {
     props.item.attendance.jam_hadir = null;
   }
 
-  scrollNext();
-
   saving.value = true;
   saved.value = false;
 
@@ -99,23 +97,11 @@ const cardClass = computed(() => {
   }
 });
 
-function scrollNext() {
-  const nextCard = document.getElementById(
-    `attendance-card-${props.index + 1}`
-  );
-
-  if (!nextCard) return;
-
-  nextCard.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
-}
 </script>
 
 <template>
   <div
-    :id="`attendance-card-${index}`"
+    :id="`attendance-card-${item.registrasi_kelas_id}`"
     :class="[
       'rounded-2xl border p-5 shadow-sm transition-all duration-300 hover:shadow-lg scroll-mt-24',
       cardClass,

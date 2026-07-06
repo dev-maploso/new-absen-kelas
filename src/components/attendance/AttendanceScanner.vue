@@ -34,6 +34,14 @@ async function onScanSuccess(decodedText: string) {
         : { qr: decodedText }
     );
 
+      const item = attendance.items.find(
+      item => item.registrasi_kelas_id === res.registrasi_kelas_id
+    );
+
+    if (item) {
+      item.hidden = true;
+    }
+
     toast.success(res.nama, {
       description: `${capitalize(res.status)}${
         res.keterangan ? ` • ${res.keterangan}` : ""

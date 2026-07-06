@@ -5,7 +5,13 @@ import AttendanceRow from "./AttendanceRow.vue";
 
 const attendance = useAttendanceStore();
 
-const total = computed(() => attendance.items.length);
+// Hanya tampilkan yang belum di-hide
+const visibleItems = computed(() =>
+  attendance.items.filter(item => !item.hidden)
+);
+
+// Total yang masih tampil
+const total = computed(() => visibleItems.value.length);
 </script>
 
 <template>
@@ -36,14 +42,20 @@ const total = computed(() => attendance.items.length);
     <!-- List -->
     <div class="bg-slate-50 p-4 md:p-6">
       <div class="space-y-4">
-
         <AttendanceRow
-          v-for="(item, index) in attendance.items"
+          v-for="(item, index) in visibleItems"
           :key="item.registrasi_kelas_id"
           :item="item"
           :index="index"
         />
 
+        <!-- Kalau semua sudah di-scan -->
+        <div
+          v-if="visibleItems.length === 0"
+          class="rounded-xl border border-dashed border-slate-300 bg-white py-10 text-center text-slate-500"
+        >
+          🎉 Semua mahasantri sudah diproses.
+        </div>
       </div>
     </div>
   </section>
