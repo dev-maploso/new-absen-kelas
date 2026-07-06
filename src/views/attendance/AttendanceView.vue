@@ -43,9 +43,12 @@ async function loadAttendance() {
     <AttendanceEmpty v-if="!loaded" />
 
     <template v-else>
+    
+         <AttendanceSearch />
+    
       <AttendanceScanner />
 
-      <AttendanceSearch />
+      
 
       <AttendanceStatistics />
 

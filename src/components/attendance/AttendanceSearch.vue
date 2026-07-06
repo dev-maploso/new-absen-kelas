@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useAttendanceStore } from "@/stores/attendance";
+import type { AttendanceItem } from "@/types/attendance";
 
 const attendance = useAttendanceStore();
 
@@ -20,27 +21,31 @@ const suggestions = computed(() => {
         .slice(0, 8);
 });
 
-function select(item: any) {
+function select(item: AttendanceItem) {
     keyword.value = "";
     show.value = false;
 
-    const el = document.getElementById(
-        `attendance-card-${item.registrasi_kelas_id}`
-    );
+    const input = document.getElementById("attendance-search") as HTMLInputElement | null;
+    input?.blur();
 
-    if (!el) return;
+    window.setTimeout(() => {
+        const el = document.getElementById(
+            `attendance-card-${item.registrasi_kelas_id}`
+        );
 
-    el.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-    });
+        if (!el) return;
 
-    // Highlight card sebentar
-    el.classList.add("ring-4", "ring-indigo-400");
+        el.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+        });
 
-    setTimeout(() => {
-        el.classList.remove("ring-4", "ring-indigo-400");
-    }, 2000);
+        el.classList.add("ring-4", "ring-indigo-400");
+
+        window.setTimeout(() => {
+            el.classList.remove("ring-4", "ring-indigo-400");
+        }, 2000);
+    }, 250);
 }
 
 function hideSuggestion() {
