@@ -138,7 +138,7 @@ onBeforeUnmount(() => {
       <!-- 🔥 FIX UTAMA: height wajib besar di desktop -->
       <div
         :id="scannerId"
-        class="w-full min-h-[320px] md:min-h-[420px] lg:min-h-[520px]
+        class="w-full min-h-80 md:min-h-105 lg:min-h-130
                bg-black rounded-xl overflow-hidden
                flex items-center justify-center"
       />

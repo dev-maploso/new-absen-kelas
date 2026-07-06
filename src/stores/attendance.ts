@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import AttendanceService from "@/services/attendance.service";
 import type { AttendanceItem } from "@/types/attendance";
+import { getJakartaDate } from "@/helpers/date";
 
 export const useAttendanceStore = defineStore("attendance", {
   state: () => ({
@@ -8,7 +9,7 @@ export const useAttendanceStore = defineStore("attendance", {
 
     kelasId: null as number | null,
 
-    tanggal: new Date().toISOString().slice(0, 10),
+    tanggal: getJakartaDate(),
 
     jamKe: 1,
 

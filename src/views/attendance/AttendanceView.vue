@@ -11,6 +11,7 @@ import AttendanceEmpty from "@/components/attendance/AttendanceEmpty.vue";
 import AttendanceScanner from "@/components/attendance/AttendanceScanner.vue";
 import AttendanceSearch from "@/components/attendance/AttendanceSearch.vue";
 import AttendanceBackToTop from "@/components/attendance/AttendanceBackToTop.vue";
+import AttendanceDateTime from "@/components/attendance/AttendanceDateTime.vue";
 
 const attendance = useAttendanceStore();
 const auth = useAuthStore();
@@ -40,20 +41,15 @@ async function loadAttendance() {
   <div class="space-y-6">
     <AttendanceFilter :kelas="kelas" @load="loadAttendance" />
 
+    <AttendanceDateTime />
+
     <AttendanceEmpty v-if="!loaded" />
 
     <template v-else>
-    
-         <AttendanceSearch />
-    
+      <AttendanceSearch />
       <AttendanceScanner />
-
-      
-
       <AttendanceStatistics />
-
       <AttendanceTable />
-
       <AttendanceActions />
       <AttendanceBackToTop />
     </template>
