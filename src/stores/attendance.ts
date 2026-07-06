@@ -22,7 +22,7 @@ export const useAttendanceStore = defineStore("attendance", {
       alpha: 0,
     },
 
-    debug: false, // 🔥 ENABLE DEBUG
+    debug: false,
   }),
 
   actions: {
@@ -49,49 +49,67 @@ export const useAttendanceStore = defineStore("attendance", {
       }
     },
 
+    // ===========================
+    // SAVE SEMUA
+    // ===========================
     async save() {
       const payload = {
         kelas_id: this.kelasId,
         tanggal: this.tanggal,
         jam_ke: this.jamKe,
 
-        attendances: this.items.map((item) => {
-          let jam = item.attendance.jam_hadir;
-
-          // 🔥 FORCE FORMAT H:i
-          if (typeof jam === "string") {
-            jam = jam.slice(0, 5);
-          }
-
-          const data = {
-            registrasi_kelas_id: item.registrasi_kelas_id,
-            status: item.attendance.status,
-            jam_hadir: jam,
-            keterangan: item.attendance.keterangan,
-          };
-
-          return data;
-        }),
+        attendances: this.items.map((item) => ({
+          registrasi_kelas_id: item.registrasi_kelas_id,
+          status: item.attendance.status,
+          jam_hadir: item.attendance.jam_hadir
+            ? item.attendance.jam_hadir.slice(0, 5)
+            : null,
+          keterangan: item.attendance.keterangan,
+        })),
       };
 
       if (this.debug) {
-        console.log("🚀 PAYLOAD KIRIM KE BACKEND:");
-        console.log(JSON.stringify(payload, null, 2));
+        console.log("🚀 SAVE ALL");
+        console.log(payload);
+      }
+
+      return AttendanceService.store(payload);
+    },
+
+    // ===========================
+    // SAVE SATU SANTRI (AUTOSAVE)
+    // ===========================
+    async saveOne(item: AttendanceItem) {
+      const payload = {
+        kelas_id: this.kelasId,
+        tanggal: this.tanggal,
+        jam_ke: this.jamKe,
+
+        registrasi_kelas_id: item.registrasi_kelas_id,
+        status: item.attendance.status,
+        jam_hadir: item.attendance.jam_hadir
+          ? item.attendance.jam_hadir.slice(0, 5)
+          : null,
+        keterangan: item.attendance.keterangan,
+      };
+
+      if (this.debug) {
+        console.log("🚀 SAVE ONE");
+        console.log(payload);
       }
 
       try {
-        const res = await AttendanceService.store(payload);
+        const res = await AttendanceService.saveOne(payload);
 
         if (this.debug) {
-          console.log("✅ SAVE SUCCESS:", res.data);
+          console.log("✅ SAVE ONE SUCCESS");
+          console.log(res.data);
         }
 
         return res.data;
       } catch (err: any) {
-        console.error("🔥 ERROR RESPONSE FULL:");
-
-        console.log("STATUS:", err?.response?.status);
-        console.log("DATA:", err?.response?.data);
+        console.error("❌ SAVE ONE ERROR");
+        console.log(err.response?.data);
 
         throw err;
       }
