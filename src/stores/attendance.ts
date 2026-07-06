@@ -26,6 +26,9 @@ export const useAttendanceStore = defineStore("attendance", {
   }),
 
   actions: {
+    // =====================================
+    // LOAD
+    // =====================================
     async load() {
       if (!this.kelasId) return;
 
@@ -42,16 +45,17 @@ export const useAttendanceStore = defineStore("attendance", {
         this.statistics = res.data.statistics;
 
         if (this.debug) {
-          console.log("📥 LOAD RESPONSE:", res.data);
+          console.log("📥 LOAD RESPONSE");
+          console.log(res.data);
         }
       } finally {
         this.loading = false;
       }
     },
 
-    // ===========================
+    // =====================================
     // SAVE SEMUA
-    // ===========================
+    // =====================================
     async save() {
       const payload = {
         kelas_id: this.kelasId,
@@ -76,9 +80,9 @@ export const useAttendanceStore = defineStore("attendance", {
       return AttendanceService.store(payload);
     },
 
-    // ===========================
-    // SAVE SATU SANTRI (AUTOSAVE)
-    // ===========================
+    // =====================================
+    // SAVE SATU
+    // =====================================
     async saveOne(item: AttendanceItem) {
       const payload = {
         kelas_id: this.kelasId,
@@ -98,21 +102,69 @@ export const useAttendanceStore = defineStore("attendance", {
         console.log(payload);
       }
 
-      try {
-        const res = await AttendanceService.saveOne(payload);
+      const res = await AttendanceService.saveOne(payload);
 
-        if (this.debug) {
-          console.log("✅ SAVE ONE SUCCESS");
-          console.log(res.data);
-        }
-
-        return res.data;
-      } catch (err: any) {
-        console.error("❌ SAVE ONE ERROR");
-        console.log(err.response?.data);
-
-        throw err;
+      if (this.debug) {
+        console.log("✅ SAVE ONE SUCCESS");
+        console.log(res.data);
       }
+
+      this.recalculateStatistics();
+
+      return res.data;
+    },
+
+    // =====================================
+    // SCAN QR
+    // =====================================
+    async scanQr(payload: { qr?: string; nim?: string }) {
+      const res = await AttendanceService.scanQr({
+        kelas_id: this.kelasId,
+        tanggal: this.tanggal,
+        jam_ke: this.jamKe,
+        qr_token: payload.qr,
+        nim: payload.nim,
+      });
+
+      const result = res.data.data;
+
+      const item = this.items.find(
+        (x) => x.registrasi_kelas_id === result.registrasi_kelas_id,
+      );
+
+      if (item) {
+        item.attendance.id = result.attendance_id;
+        item.attendance.status = result.status;
+        item.attendance.jam_hadir = result.jam_hadir;
+        item.attendance.keterangan = result.keterangan;
+      }
+
+      this.recalculateStatistics();
+
+      return result;
+    },
+
+    // =====================================
+    // HITUNG ULANG STATISTIK
+    // =====================================
+    recalculateStatistics() {
+      this.statistics.total = this.items.length;
+
+      this.statistics.hadir = this.items.filter(
+        (x) => x.attendance.status === "hadir",
+      ).length;
+
+      this.statistics.izin = this.items.filter(
+        (x) => x.attendance.status === "izin",
+      ).length;
+
+      this.statistics.sakit = this.items.filter(
+        (x) => x.attendance.status === "sakit",
+      ).length;
+
+      this.statistics.alpha = this.items.filter(
+        (x) => x.attendance.status === "alpha",
+      ).length;
     },
   },
 });

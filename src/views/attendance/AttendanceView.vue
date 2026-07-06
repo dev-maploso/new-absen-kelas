@@ -8,6 +8,7 @@ import AttendanceStatistics from "@/components/attendance/AttendanceStatistics.v
 import AttendanceTable from "@/components/attendance/AttendanceTable.vue";
 import AttendanceActions from "@/components/attendance/AttendanceActions.vue";
 import AttendanceEmpty from "@/components/attendance/AttendanceEmpty.vue";
+import AttendanceScanner from "@/components/attendance/AttendanceScanner.vue";
 
 const attendance = useAttendanceStore();
 const auth = useAuthStore();
@@ -24,28 +25,29 @@ onMounted(() => {
 
 async function loadAttendance() {
     loaded.value = false;
-    await attendance.load();
-    loaded.value = true;
+
+    try {
+        await attendance.load();
+    } finally {
+        loaded.value = true;
+    }
 }
 </script>
 
 <template>
-
-    <AttendanceFilter
-        :kelas="kelas"
-        @load="loadAttendance"
-    />
+    <AttendanceFilter :kelas="kelas" @load="loadAttendance" />
 
     <AttendanceEmpty v-if="!loaded" />
 
     <template v-else>
-
+        <AttendanceScanner />
+        
         <AttendanceStatistics />
 
         <AttendanceTable />
 
+
+
         <AttendanceActions />
-
     </template>
-
 </template>

@@ -14,4 +14,13 @@ export default {
   saveOne(data: any) {
     return api.post("/wali-kelas/attendances/save-one", data);
   },
+  scanQr(data: {
+    kelas_id: number | null;
+    tanggal: string;
+    jam_ke: number;
+    qr_token?: string;
+    nim?: string;
+  }) {
+    return api.post("/wali-kelas/attendances/scan-qr", data);
+  },
 };
