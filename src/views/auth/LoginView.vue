@@ -21,8 +21,6 @@ const onSubmit = async () => {
 
   try {
     await auth.login(email.value, password.value);
-    console.log("TOKEN:", auth.token);
-    console.log("USER:", auth.user);
 
     router.replace("/dashboard");
   } catch (err) {
