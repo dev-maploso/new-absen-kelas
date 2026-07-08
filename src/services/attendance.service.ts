@@ -1,3 +1,4 @@
+import type { AttendanceRecapResponse } from "@/types/attendance-recap";
 import api from "./api";
 import type { AttendanceResponse } from "@/types/attendance";
 
@@ -6,6 +7,20 @@ export default {
     return api.get<AttendanceResponse>("/wali-kelas/attendances", {
       params,
     });
+  },
+
+  recap(params: {
+    kelas_id: number;
+    tanggal_mulai: string;
+    tanggal_selesai: string;
+    jam_ke: number;
+  }) {
+    return api.get<AttendanceRecapResponse>(
+      "/wali-kelas/attendances/recap",
+      {
+        params,
+      },
+    );
   },
 
   store(data: any) {

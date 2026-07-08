@@ -48,8 +48,7 @@ const router = createRouter({
         {
           path: "dashboard",
           name: "dashboard",
-          component: () =>
-            import("@/views/dashboard/DashboardView.vue"),
+          component: () => import("@/views/dashboard/DashboardView.vue"),
 
           meta: {
             title: "Dashboard",
@@ -59,8 +58,7 @@ const router = createRouter({
         {
           path: "attendance",
           name: "attendance",
-          component: () =>
-            import("@/views/attendance/AttendanceView.vue"),
+          component: () => import("@/views/attendance/AttendanceView.vue"),
 
           meta: {
             title: "Absensi",
@@ -68,10 +66,19 @@ const router = createRouter({
         },
 
         {
+          path: "attendance/recap",
+          name: "attendance-recap",
+          component: () => import("@/views/attendance/AttendanceRecapView.vue"),
+
+          meta: {
+            title: "Rekap Absensi",
+          },
+        },
+
+        {
           path: "profile",
           name: "profile",
-          component: () =>
-            import("@/views/profile/ProfileView.vue"),
+          component: () => import("@/views/profile/ProfileView.vue"),
 
           meta: {
             title: "Profil",

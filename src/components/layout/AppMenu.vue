@@ -2,6 +2,7 @@
 import {
   LayoutDashboard,
   ClipboardCheck,
+  ClipboardList,
   User,
   LogOut,
 } from "lucide-vue-next";
@@ -23,11 +24,19 @@ const menus = [
     title: "Dashboard",
     icon: LayoutDashboard,
     to: "/dashboard",
+    match: /^\/dashboard$/,
   },
   {
     title: "Absensi",
     icon: ClipboardCheck,
     to: "/attendance",
+    match: /^\/attendance$/,
+  },
+  {
+    title: "Rekap Absensi",
+    icon: ClipboardList,
+    to: "/attendance/recap",
+    match: /^\/attendance\/recap/,
   },
 ];
 
@@ -48,73 +57,34 @@ const logout = async () => {
 <template>
   <nav class="menu">
     <div class="menu-top">
-      <RouterLink
-        v-for="menu in menus"
-        :key="menu.to"
-        :to="menu.to"
-        class="menu-item"
-        :class="{
-          active: route.path.startsWith(menu.to),
-          collapsed,
-        }"
-        :title="collapsed ? menu.title : ''"
-      >
-        <component
-          :is="menu.icon"
-          :size="20"
-          class="icon"
-        />
+      <RouterLink v-for="menu in menus" :key="menu.to" :to="menu.to" class="menu-item" :class="{
+        active: menu.match.test(route.path),
+        collapsed,
+      }" :title="collapsed ? menu.title : ''">
+        <component :is="menu.icon" :size="20" class="icon" />
 
-        <span
-          v-if="!collapsed"
-          class="label"
-        >
+        <span v-if="!collapsed" class="label">
           {{ menu.title }}
         </span>
       </RouterLink>
     </div>
 
     <div class="menu-bottom">
-      <RouterLink
-        v-for="menu in bottomMenus"
-        :key="menu.to"
-        :to="menu.to"
-        class="menu-item"
-        :class="{
-          active: route.path.startsWith(menu.to),
-          collapsed,
-        }"
-        :title="collapsed ? menu.title : ''"
-      >
-        <component
-          :is="menu.icon"
-          :size="20"
-          class="icon"
-        />
+      <RouterLink v-for="menu in bottomMenus" :key="menu.to" :to="menu.to" class="menu-item" :class="{
+        active: route.path.startsWith(menu.to),
+        collapsed,
+      }" :title="collapsed ? menu.title : ''">
+        <component :is="menu.icon" :size="20" class="icon" />
 
-        <span
-          v-if="!collapsed"
-          class="label"
-        >
+        <span v-if="!collapsed" class="label">
           {{ menu.title }}
         </span>
       </RouterLink>
 
-      <button
-        class="menu-item logout"
-        :class="{ collapsed }"
-        :title="collapsed ? 'Logout' : ''"
-        @click="logout"
-      >
-        <LogOut
-          :size="20"
-          class="icon"
-        />
+      <button class="menu-item logout" :class="{ collapsed }" :title="collapsed ? 'Logout' : ''" @click="logout">
+        <LogOut :size="20" class="icon" />
 
-        <span
-          v-if="!collapsed"
-          class="label"
-        >
+        <span v-if="!collapsed" class="label">
           Logout
         </span>
       </button>
@@ -177,7 +147,7 @@ const logout = async () => {
 }
 
 .menu-item:hover {
-  background: rgba(255,255,255,.08);
+  background: rgba(255, 255, 255, .08);
 
   color: white;
 }
@@ -205,7 +175,7 @@ const logout = async () => {
 }
 
 .logout:hover {
-  background: rgba(239,68,68,.15);
+  background: rgba(239, 68, 68, .15);
 
   color: #fca5a5;
 }
