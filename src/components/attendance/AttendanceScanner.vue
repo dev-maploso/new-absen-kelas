@@ -62,7 +62,7 @@ async function startScanner() {
   try {
     if (scanning.value) return;
 
-    console.log("📷 INIT SCANNER");
+    // console.log("📷 INIT SCANNER");
 
     scanner.value = new Html5Qrcode(scannerId);
 
@@ -88,7 +88,7 @@ async function startScanner() {
 
     scanning.value = true;
 
-    console.log("✅ SCANNER STARTED");
+    // console.log("✅ SCANNER STARTED");
   } catch (err) {
     console.error("❌ SCANNER ERROR:", err);
     toast.error("Gagal mengaktifkan kamera");

@@ -6,7 +6,7 @@ import {
   LogOut,
 } from "lucide-vue-next";
 
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 
 import { useAuthStore } from "@/stores/auth";
 
@@ -15,6 +15,7 @@ defineProps<{
 }>();
 
 const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
 
 const menus = [
@@ -40,6 +41,7 @@ const bottomMenus = [
 
 const logout = async () => {
   await auth.logout();
+  await router.replace({ name: "login" });
 };
 </script>
 

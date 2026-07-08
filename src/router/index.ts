@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { setupRouterGuards } from "./guards";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -90,5 +91,8 @@ const router = createRouter({
     },
   ],
 });
+
+// Pasang navigation guard
+setupRouterGuards(router);
 
 export default router;
