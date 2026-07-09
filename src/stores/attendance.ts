@@ -24,7 +24,49 @@ export const useAttendanceStore = defineStore("attendance", {
     },
 
     debug: false,
+
+    quickFilter: "all" as
+  | "all"
+  | "empty"
+  | "hadir"
+  | "izin"
+  | "sakit"
+  | "alpha",
   }),
+
+  getters: {
+  filteredItems(state) {
+    switch (state.quickFilter) {
+      case "empty":
+        return state.items.filter(
+          (item) => !item.attendance.status,
+        );
+
+      case "hadir":
+        return state.items.filter(
+          (item) => item.attendance.status === "hadir",
+        );
+
+      case "izin":
+        return state.items.filter(
+          (item) => item.attendance.status === "izin",
+        );
+
+      case "sakit":
+        return state.items.filter(
+          (item) => item.attendance.status === "sakit",
+        );
+
+      case "alpha":
+        return state.items.filter(
+          (item) => item.attendance.status === "alpha",
+        );
+
+      default:
+        return state.items;
+    }
+  },
+},
 
   actions: {
     // =====================================

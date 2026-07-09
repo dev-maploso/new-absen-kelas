@@ -5,12 +5,12 @@ import AttendanceRow from "./AttendanceRow.vue";
 
 const attendance = useAttendanceStore();
 
-// Hanya tampilkan yang belum di-hide
+// Quick Filter + Search
 const visibleItems = computed(() =>
-  attendance.items.filter(item => !item.hidden)
+  attendance.filteredItems.filter((item) => !item.hidden),
 );
 
-// Total yang masih tampil
+// Total yang tampil
 const total = computed(() => visibleItems.value.length);
 </script>
 
