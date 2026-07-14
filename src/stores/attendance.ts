@@ -3,6 +3,15 @@ import AttendanceService from "@/services/attendance.service";
 import type { AttendanceItem } from "@/types/attendance";
 import { getJakartaDate } from "@/helpers/date";
 
+type ScanQrResult = {
+  registrasi_kelas_id: number;
+  nama: string;
+  status: "hadir" | "izin" | "sakit" | "alpha";
+  jam_hadir: string | null;
+  keterangan: string | null;
+  attendance_id: number;
+};
+
 export const useAttendanceStore = defineStore("attendance", {
   state: () => ({
     items: [] as AttendanceItem[],
@@ -11,7 +20,11 @@ export const useAttendanceStore = defineStore("attendance", {
 
     tanggal: getJakartaDate(),
 
+    // filter jam aktif
     jamKe: 1,
+
+    // jam yang dipakai saat scan QR izin
+    selectedJamKe: [1] as number[],
 
     loading: false,
 
@@ -26,49 +39,70 @@ export const useAttendanceStore = defineStore("attendance", {
     debug: false,
 
     quickFilter: "all" as
-  | "all"
-  | "empty"
-  | "hadir"
-  | "izin"
-  | "sakit"
-  | "alpha",
+      | "all"
+      | "empty"
+      | "hadir"
+      | "izin"
+      | "sakit"
+      | "alpha",
   }),
 
   getters: {
-  filteredItems(state) {
-    switch (state.quickFilter) {
-      case "empty":
-        return state.items.filter(
-          (item) => !item.attendance.status,
-        );
+    filteredItems(state) {
+      switch (state.quickFilter) {
+        case "empty":
+          return state.items.filter((item) => !item.attendance.status);
 
-      case "hadir":
-        return state.items.filter(
-          (item) => item.attendance.status === "hadir",
-        );
+        case "hadir":
+          return state.items.filter(
+            (item) => item.attendance.status === "hadir",
+          );
 
-      case "izin":
-        return state.items.filter(
-          (item) => item.attendance.status === "izin",
-        );
+        case "izin":
+          return state.items.filter(
+            (item) => item.attendance.status === "izin",
+          );
 
-      case "sakit":
-        return state.items.filter(
-          (item) => item.attendance.status === "sakit",
-        );
+        case "sakit":
+          return state.items.filter(
+            (item) => item.attendance.status === "sakit",
+          );
 
-      case "alpha":
-        return state.items.filter(
-          (item) => item.attendance.status === "alpha",
-        );
+        case "alpha":
+          return state.items.filter(
+            (item) => item.attendance.status === "alpha",
+          );
 
-      default:
-        return state.items;
-    }
+        default:
+          return state.items;
+      }
+    },
   },
-},
 
   actions: {
+    // =====================================
+    // SET JAM FILTER
+    // =====================================
+    setJamKe(jam: number) {
+      this.jamKe = jam;
+
+      // otomatis pilih jam tersebut
+      if (!this.selectedJamKe.includes(jam)) {
+        this.selectedJamKe = [jam];
+      }
+    },
+
+    // =====================================
+    // TOGGLE CHECKBOX JAM IZIN
+    // =====================================
+    toggleJamKe(jam: number) {
+      if (this.selectedJamKe.includes(jam)) {
+        this.selectedJamKe = this.selectedJamKe.filter((x) => x !== jam);
+      } else {
+        this.selectedJamKe.push(jam);
+      }
+    },
+
     // =====================================
     // LOAD
     // =====================================
@@ -85,10 +119,12 @@ export const useAttendanceStore = defineStore("attendance", {
         });
 
         this.items = res.data.data;
+
         this.statistics = res.data.statistics;
 
         if (this.debug) {
           console.log("📥 LOAD RESPONSE");
+
           console.log(res.data);
         }
       } finally {
@@ -102,21 +138,27 @@ export const useAttendanceStore = defineStore("attendance", {
     async save() {
       const payload = {
         kelas_id: this.kelasId,
+
         tanggal: this.tanggal,
+
         jam_ke: this.jamKe,
 
         attendances: this.items.map((item) => ({
           registrasi_kelas_id: item.registrasi_kelas_id,
+
           status: item.attendance.status,
+
           jam_hadir: item.attendance.jam_hadir
             ? item.attendance.jam_hadir.slice(0, 5)
             : null,
+
           keterangan: item.attendance.keterangan,
         })),
       };
 
       if (this.debug) {
         console.log("🚀 SAVE ALL");
+
         console.log(payload);
       }
 
@@ -129,28 +171,23 @@ export const useAttendanceStore = defineStore("attendance", {
     async saveOne(item: AttendanceItem) {
       const payload = {
         kelas_id: this.kelasId,
+
         tanggal: this.tanggal,
+
         jam_ke: this.jamKe,
 
         registrasi_kelas_id: item.registrasi_kelas_id,
+
         status: item.attendance.status,
+
         jam_hadir: item.attendance.jam_hadir
           ? item.attendance.jam_hadir.slice(0, 5)
           : null,
+
         keterangan: item.attendance.keterangan,
       };
 
-      if (this.debug) {
-        console.log("🚀 SAVE ONE");
-        console.log(payload);
-      }
-
       const res = await AttendanceService.saveOne(payload);
-
-      if (this.debug) {
-        console.log("✅ SAVE ONE SUCCESS");
-        console.log(res.data);
-      }
 
       this.recalculateStatistics();
 
@@ -158,31 +195,52 @@ export const useAttendanceStore = defineStore("attendance", {
     },
 
     // =====================================
-    // SCAN QR
+    // SCAN QR / NIM
     // =====================================
-    async scanQr(payload: { qr?: string; nim?: string }) {
-      const res = await AttendanceService.scanQr({
-        kelas_id: this.kelasId,
-        tanggal: this.tanggal,
-        jam_ke: this.jamKe,
-        qr_token: payload.qr,
-        nim: payload.nim,
-      });
+    async scanQr(payload: {
+      qr?: string;
+      nim?: string;
+      jam_ke_list?: number[];
+    }) {
+      let result: ScanQrResult | null = null;
 
-      const result = res.data.data;
+      const jamList = payload.jam_ke_list ?? [this.jamKe];
 
-      const item = this.items.find(
-        (x) => x.registrasi_kelas_id === result.registrasi_kelas_id,
-      );
+      for (const jam of jamList) {
+        const res = await AttendanceService.scanQr({
+          kelas_id: this.kelasId,
 
-      if (item) {
-        item.attendance.id = result.attendance_id;
-        item.attendance.status = result.status;
-        item.attendance.jam_hadir = result.jam_hadir;
-        item.attendance.keterangan = result.keterangan;
+          tanggal: this.tanggal,
+
+          jam_ke: jam,
+
+          qr_token: payload.qr,
+
+          nim: payload.nim,
+        });
+
+        result = res.data.data;
+
+        const item = this.items.find(
+          (x) => x.registrasi_kelas_id === result!.registrasi_kelas_id,
+        );
+
+        if (item) {
+          item.attendance.id = result!.attendance_id;
+
+          item.attendance.status = result!.status;
+
+          item.attendance.jam_hadir = result!.jam_hadir;
+
+          item.attendance.keterangan = result!.keterangan;
+        }
       }
 
       this.recalculateStatistics();
+
+      if (!result) {
+        throw new Error("Scan gagal");
+      }
 
       return result;
     },

@@ -30,11 +30,18 @@ async function onScanSuccess(decodedText: string) {
   try {
     const res = await attendance.scanQr(
       isNim(decodedText)
-        ? { nim: decodedText }
-        : { qr: decodedText }
+        ? {
+            // NIM -> hanya jam yang sedang difilter
+            nim: decodedText,
+          }
+        : {
+            // QR izin -> bisa banyak jam
+            qr: decodedText,
+            jam_ke_list: attendance.selectedJamKe,
+          }
     );
 
-      const item = attendance.items.find(
+    const item = attendance.items.find(
       item => item.registrasi_kelas_id === res.registrasi_kelas_id
     );
 
@@ -136,17 +143,12 @@ onBeforeUnmount(() => {
     <!-- SCANNER AREA -->
     <div class="p-5">
       <!-- 🔥 FIX UTAMA: height wajib besar di desktop -->
-      <div
-        :id="scannerId"
-        class="w-full min-h-80 md:min-h-105 lg:min-h-130
+      <div :id="scannerId" class="w-full min-h-80 md:min-h-105 lg:min-h-130
                bg-black rounded-xl overflow-hidden
-               flex items-center justify-center"
-      />
+               flex items-center justify-center" />
 
       <!-- STATUS -->
-      <div
-        class="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700"
-      >
+      <div class="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
         Kamera aktif dan siap digunakan
       </div>
     </div>

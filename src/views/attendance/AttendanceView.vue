@@ -14,6 +14,7 @@ import AttendanceActions from "@/components/attendance/AttendanceActions.vue";
 import AttendanceEmpty from "@/components/attendance/AttendanceEmpty.vue";
 import AttendanceBackToTop from "@/components/attendance/AttendanceBackToTop.vue";
 import AttendanceQuickFilter from "@/components/attendance/AttendanceQuickFilter.vue";
+import AttendanceJamSelector from "@/components/attendance/AttendanceJamSelector.vue";
 
 const attendance = useAttendanceStore();
 const auth = useAuthStore();
@@ -49,6 +50,7 @@ async function loadAttendance() {
 
     <!-- Tanggal & Jam -->
     <AttendanceDateTime />
+    <AttendanceJamSelector />
 
     <AttendanceEmpty v-if="!loaded" />
 
