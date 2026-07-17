@@ -5,6 +5,7 @@ import {
   ClipboardList,
   User,
   LogOut,
+  WalletCards,
 } from "lucide-vue-next";
 
 import { RouterLink, useRoute, useRouter } from "vue-router";
@@ -37,6 +38,12 @@ const menus = [
     icon: ClipboardList,
     to: "/attendance/recap",
     match: /^\/attendance\/recap/,
+  },
+  {
+    title: "Pembayaran",
+    icon: WalletCards,
+    to: "/pembayaran",
+    match: /^\/pembayaran/,
   },
 ];
 

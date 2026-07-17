@@ -76,6 +76,16 @@ const router = createRouter({
         },
 
         {
+  path: "pembayaran",
+  name: "pembayaran",
+  component: () => import("@/views/pembayaran/PembayaranView.vue"),
+
+  meta: {
+    title: "Pembayaran Mahasantri",
+  },
+},
+
+        {
           path: "profile",
           name: "profile",
           component: () => import("@/views/profile/ProfileView.vue"),
