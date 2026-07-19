@@ -6,7 +6,6 @@ import { useAuthStore } from "@/stores/auth";
 
 import AttendanceFilter from "@/components/attendance/AttendanceFilter.vue";
 import AttendanceDateTime from "@/components/attendance/AttendanceDateTime.vue";
-import AttendanceStatistics from "@/components/attendance/AttendanceStatistics.vue";
 import AttendanceSearch from "@/components/attendance/AttendanceSearch.vue";
 import AttendanceScanner from "@/components/attendance/AttendanceScanner.vue";
 import AttendanceTable from "@/components/attendance/AttendanceTable.vue";
@@ -22,6 +21,8 @@ const auth = useAuthStore();
 const loaded = ref(false);
 
 const kelas = computed(() => auth.kelas);
+
+const scanEnabled = ref(false);
 
 onMounted(() => {
   if (kelas.value.length) {
@@ -56,10 +57,25 @@ async function loadAttendance() {
 
     <template v-else>
       <!-- Statistik -->
-      <AttendanceStatistics />
+      <!-- <AttendanceStatistics /> -->
+
+      <!-- Tombol Scan -->
+      <div class="flex justify-end">
+        <button
+          @click="scanEnabled = !scanEnabled"
+          :class="[
+            'rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition',
+            scanEnabled
+              ? 'bg-red-600 text-white hover:bg-red-700'
+              : 'bg-emerald-600 text-white hover:bg-emerald-700'
+          ]"
+        >
+          {{ scanEnabled ? "🚫 Matikan Scanner" : "📷 Aktifkan Scanner" }}
+        </button>
+      </div>
 
       <!-- Scanner -->
-      <AttendanceScanner />
+      <AttendanceScanner v-if="scanEnabled" />
 
       <!-- Search -->
       <AttendanceSearch />

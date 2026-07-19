@@ -1,7 +1,12 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
 import { useAttendanceStore } from "@/stores/attendance";
 
 const attendance = useAttendanceStore();
+
+onMounted(() => {
+  attendance.quickFilter = "empty";
+});
 
 const filters = [
   {
