@@ -4,6 +4,11 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 import { API } from "@/constants/api";
+import { syncServerClock } from "@/helpers/server-clock";
+
+type TimedRequestConfig = InternalAxiosRequestConfig & {
+  requestStartedAt?: number;
+};
 
 const api: AxiosInstance = axios.create({
   baseURL: API.BASE_URL,
@@ -20,6 +25,9 @@ const api: AxiosInstance = axios.create({
  */
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    const timedConfig = config as TimedRequestConfig;
+    timedConfig.requestStartedAt = Date.now();
+
     const token = localStorage.getItem("token");
 
     if (token) {
@@ -35,7 +43,17 @@ api.interceptors.request.use(
  * Response Interceptor
  */
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const config = response.config as TimedRequestConfig;
+    const dateHeader = response.headers?.date;
+
+    syncServerClock(
+      typeof dateHeader === "string" ? dateHeader : undefined,
+      config.requestStartedAt,
+    );
+
+    return response;
+  },
 
   (error: AxiosError<any>) => {
     const status = error.response?.status;

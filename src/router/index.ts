@@ -66,6 +66,17 @@ const router = createRouter({
         },
 
         {
+          path: "attendance/closed",
+          name: "attendance-closed",
+          component: () =>
+            import("@/views/attendance/AttendanceClosedView.vue"),
+
+          meta: {
+            title: "Absensi Telah Ditutup",
+          },
+        },
+
+        {
           path: "attendance/recap",
           name: "attendance-recap",
           component: () => import("@/views/attendance/AttendanceRecapView.vue"),

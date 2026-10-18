@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
 
 import { useAttendanceStore } from "@/stores/attendance";
 import { useAuthStore } from "@/stores/auth";
+import { ATTENDANCE_RESTRICTIONS } from "@/config/attendance-restrictions";
+import { isAttendanceInputBlocked } from "@/helpers/attendance-restrictions";
+import { getTrustedNow } from "@/helpers/server-clock";
 
 import AttendanceFilter from "@/components/attendance/AttendanceFilter.vue";
 import AttendanceDateTime from "@/components/attendance/AttendanceDateTime.vue";
@@ -17,6 +21,7 @@ import AttendanceJamSelector from "@/components/attendance/AttendanceJamSelector
 
 const attendance = useAttendanceStore();
 const auth = useAuthStore();
+const router = useRouter();
 
 const loaded = ref(false);
 
@@ -24,10 +29,45 @@ const kelas = computed(() => auth.kelas);
 
 const scanEnabled = ref(false);
 
+let deadlineTimer: number | undefined;
+
+function stopDeadlineTimer() {
+  if (deadlineTimer !== undefined) {
+    window.clearInterval(deadlineTimer);
+    deadlineTimer = undefined;
+  }
+}
+
+/**
+ * Pemeriksaan berkala agar halaman yang sudah terbuka sebelum deadline ikut
+ * tertutup otomatis ketika batas waktu terlewati.
+ */
+function enforceAttendanceDeadline() {
+  const blocked = isAttendanceInputBlocked(
+    kelas.value,
+    getTrustedNow(),
+    ATTENDANCE_RESTRICTIONS,
+  );
+
+  if (!blocked) {
+    return;
+  }
+
+  stopDeadlineTimer();
+  void router.replace({ name: "attendance-closed" });
+}
+
 onMounted(() => {
   if (kelas.value.length) {
     attendance.kelasId = kelas.value[0].id;
   }
+
+  enforceAttendanceDeadline();
+  deadlineTimer = window.setInterval(enforceAttendanceDeadline, 1000);
+});
+
+onBeforeUnmount(() => {
+  stopDeadlineTimer();
 });
 
 async function loadAttendance() {
