@@ -6,12 +6,14 @@ import type { AttendanceRestrictionsConfig } from "../src/config/attendance-rest
 import {
   formatJakartaDate,
   formatJakartaTime,
-  getAttendanceDeadlineLabel,
-  isAttendanceDeadlinePassed,
+  getAttendanceBlockedFromLabel,
+  getAttendanceBlockedUntilLabel,
   isAttendanceInputBlocked,
   isAttendanceRestrictedClass,
   isAttendanceRestrictedKelas,
+  isWithinAttendanceBlockedWindow,
   normalizeClassName,
+  shouldBlockAttendance,
   shouldBlockAttendanceRoute,
 } from "../src/helpers/attendance-restrictions.ts";
 
@@ -21,6 +23,8 @@ const OTHER_KELAS = [{ nama_kelas: "FMA", kode_kelas: "FMA" }];
 /**
  * Membuat Date dari jam WIB (UTC+7) pada 19 Oktober 2026.
  * Menggunakan instan UTC agar hasil tidak bergantung timezone mesin test.
+ * Ini berfungsi sebagai fake clock: seluruh batas waktu diuji tanpa
+ * menunggu waktu nyata.
  */
 function jakartaDate(
   hour: number,
@@ -99,16 +103,16 @@ test("penambahan kelas pada restrictedClasses langsung dikenali helper", () => {
 
 test("enabled: false menonaktifkan seluruh pembatasan", () => {
   const disabled = withConfig({ enabled: false });
-  const afterDeadline = jakartaDate(9, 46);
+  const insideWindow = jakartaDate(10, 0);
 
   assert.equal(isAttendanceRestrictedClass("FM C", disabled), false);
   assert.equal(isAttendanceRestrictedKelas(FMC_KELAS, disabled), false);
   assert.equal(
-    isAttendanceDeadlinePassed(afterDeadline, disabled),
+    isWithinAttendanceBlockedWindow(insideWindow, disabled),
     false,
   );
   assert.equal(
-    isAttendanceInputBlocked(FMC_KELAS, afterDeadline, disabled),
+    shouldBlockAttendance(FMC_KELAS, insideWindow, disabled),
     false,
   );
   assert.equal(
@@ -116,7 +120,7 @@ test("enabled: false menonaktifkan seluruh pembatasan", () => {
       "attendance",
       true,
       FMC_KELAS,
-      afterDeadline,
+      insideWindow,
       disabled,
     ),
     false,
@@ -144,129 +148,186 @@ test("kelas pengguna dibaca dari nama_kelas maupun kode_kelas", () => {
   );
 });
 
-test("deadline 09:45 WIB: 09:44 boleh, 09:45:00 boleh, 09:45:01 ditolak", () => {
-  assert.equal(
-    isAttendanceDeadlinePassed(jakartaDate(9, 44, 59), ATTENDANCE_RESTRICTIONS),
-    false,
-  );
-  assert.equal(
-    isAttendanceDeadlinePassed(jakartaDate(9, 45, 0), ATTENDANCE_RESTRICTIONS),
-    false,
-  );
-  assert.equal(
-    isAttendanceDeadlinePassed(jakartaDate(9, 45, 1), ATTENDANCE_RESTRICTIONS),
-    true,
-  );
-  assert.equal(
-    isAttendanceDeadlinePassed(jakartaDate(9, 46, 0), ATTENDANCE_RESTRICTIONS),
-    true,
-  );
+test("batas rentang 09.45–10.30 WIB bersifat inklusif-awal dan eksklusif-akhir", () => {
+  const cases: Array<[string, Date, boolean]> = [
+    ["09:44:59", jakartaDate(9, 44, 59), false],
+    ["09:45:00", jakartaDate(9, 45, 0), true],
+    ["09:45:01", jakartaDate(9, 45, 1), true],
+    ["10:00:00", jakartaDate(10, 0, 0), true],
+    ["10:29:59", jakartaDate(10, 29, 59), true],
+    ["10:30:00", jakartaDate(10, 30, 0), false],
+    ["10:30:01", jakartaDate(10, 30, 1), false],
+    ["10:31:00", jakartaDate(10, 31, 0), false],
+  ];
+
+  for (const [label, date, expected] of cases) {
+    assert.equal(
+      isWithinAttendanceBlockedWindow(date, ATTENDANCE_RESTRICTIONS),
+      expected,
+      `pukul ${label} seharusnya ${expected ? "ditutup" : "dibuka"}`,
+    );
+  }
 });
 
-test("pemeriksaan deadline menggunakan Asia/Jakarta, bukan jam perangkat", () => {
-  // 02:45:00 UTC = 09:45:00 WIB
+test("pemeriksaan rentang menggunakan Asia/Jakarta, bukan jam perangkat", () => {
+  // 02:44:59 UTC = 09:44:59 WIB (dibuka)
   assert.equal(
-    isAttendanceDeadlinePassed(
+    isWithinAttendanceBlockedWindow(
+      new Date("2026-10-19T02:44:59.000Z"),
+      ATTENDANCE_RESTRICTIONS,
+    ),
+    false,
+  );
+
+  // 02:45:00 UTC = 09:45:00 WIB (ditutup)
+  assert.equal(
+    isWithinAttendanceBlockedWindow(
       new Date("2026-10-19T02:45:00.000Z"),
       ATTENDANCE_RESTRICTIONS,
     ),
-    false,
+    true,
   );
 
-  // 02:45:01 UTC = 09:45:01 WIB
+  // 03:29:59 UTC = 10:29:59 WIB (ditutup)
   assert.equal(
-    isAttendanceDeadlinePassed(
-      new Date("2026-10-19T02:45:01.000Z"),
+    isWithinAttendanceBlockedWindow(
+      new Date("2026-10-19T03:29:59.000Z"),
       ATTENDANCE_RESTRICTIONS,
     ),
     true,
   );
 
-  // 17:00:00 UTC tanggal 19 = 00:00:00 WIB tanggal 20 (belum lewat)
+  // 03:30:00 UTC = 10:30:00 WIB (dibuka kembali)
   assert.equal(
-    isAttendanceDeadlinePassed(
+    isWithinAttendanceBlockedWindow(
+      new Date("2026-10-19T03:30:00.000Z"),
+      ATTENDANCE_RESTRICTIONS,
+    ),
+    false,
+  );
+
+  // 17:00:00 UTC tanggal 19 = 00:00:00 WIB tanggal 20 (di luar rentang)
+  assert.equal(
+    isWithinAttendanceBlockedWindow(
       new Date("2026-10-19T17:00:00.000Z"),
       ATTENDANCE_RESTRICTIONS,
     ),
     false,
   );
-
-  // 16:45:01 UTC tanggal 19 = 23:45:01 WIB (sudah lewat)
-  assert.equal(
-    isAttendanceDeadlinePassed(
-      new Date("2026-10-19T16:45:01.000Z"),
-      ATTENDANCE_RESTRICTIONS,
-    ),
-    true,
-  );
 });
 
-test("keputusan gabungan: hanya kelas dibatasi setelah deadline yang diblokir", () => {
+test("keputusan gabungan: hanya kelas dibatasi di dalam rentang yang diblokir", () => {
   assert.equal(
-    isAttendanceInputBlocked(FMC_KELAS, jakartaDate(9, 44), ATTENDANCE_RESTRICTIONS),
+    shouldBlockAttendance(FMC_KELAS, jakartaDate(9, 44, 59), ATTENDANCE_RESTRICTIONS),
     false,
   );
   assert.equal(
-    isAttendanceInputBlocked(
-      FMC_KELAS,
-      jakartaDate(9, 45, 0),
-      ATTENDANCE_RESTRICTIONS,
-    ),
-    false,
-  );
-  assert.equal(
-    isAttendanceInputBlocked(
-      FMC_KELAS,
-      jakartaDate(9, 45, 1),
-      ATTENDANCE_RESTRICTIONS,
-    ),
+    shouldBlockAttendance(FMC_KELAS, jakartaDate(9, 45, 0), ATTENDANCE_RESTRICTIONS),
     true,
   );
   assert.equal(
-    isAttendanceInputBlocked(
-      OTHER_KELAS,
-      jakartaDate(9, 46),
-      ATTENDANCE_RESTRICTIONS,
-    ),
+    shouldBlockAttendance(FMC_KELAS, jakartaDate(10, 29, 59), ATTENDANCE_RESTRICTIONS),
+    true,
+  );
+  assert.equal(
+    shouldBlockAttendance(FMC_KELAS, jakartaDate(10, 30, 0), ATTENDANCE_RESTRICTIONS),
+    false,
+  );
+  assert.equal(
+    shouldBlockAttendance(OTHER_KELAS, jakartaDate(10, 0, 0), ATTENDANCE_RESTRICTIONS),
+    false,
+  );
+
+  // Alias lama harus mengikuti logika rentang yang baru.
+  assert.equal(
+    isAttendanceInputBlocked(FMC_KELAS, jakartaDate(10, 0), ATTENDANCE_RESTRICTIONS),
+    true,
+  );
+  assert.equal(
+    isAttendanceInputBlocked(FMC_KELAS, jakartaDate(10, 30), ATTENDANCE_RESTRICTIONS),
     false,
   );
 });
 
-test("sesi yang dibuka sebelum deadline kehilangan akses setelah deadline", () => {
+test("kelas FM C dan FMC terkena aturan, kelas lain tidak", () => {
+  const atBlockedTime = jakartaDate(10, 0);
+
+  for (const kelas of [
+    [{ nama_kelas: "FM C", kode_kelas: "FMC" }],
+    [{ nama_kelas: "FMC", kode_kelas: "FMC" }],
+    [{ nama_kelas: "  fm c ", kode_kelas: "fmc" }],
+  ]) {
+    assert.equal(
+      shouldBlockAttendance(kelas, atBlockedTime, ATTENDANCE_RESTRICTIONS),
+      true,
+    );
+  }
+
+  for (const kelas of [
+    [{ nama_kelas: "FMA", kode_kelas: "FMA" }],
+    [{ nama_kelas: "FMB", kode_kelas: "FMB" }],
+    [{ nama_kelas: "FMD", kode_kelas: "FMD" }],
+    [{ nama_kelas: "FM C 1", kode_kelas: "FMC1" }],
+  ]) {
+    assert.equal(
+      shouldBlockAttendance(kelas, atBlockedTime, ATTENDANCE_RESTRICTIONS),
+      false,
+    );
+  }
+});
+
+test("sesi yang dibuka sebelum pukul 09.45 otomatis ditutup saat rentang dimulai", () => {
   const sameSession = FMC_KELAS;
 
   assert.equal(
-    isAttendanceInputBlocked(
-      sameSession,
-      jakartaDate(9, 30),
-      ATTENDANCE_RESTRICTIONS,
-    ),
+    shouldBlockAttendance(sameSession, jakartaDate(9, 44, 59), ATTENDANCE_RESTRICTIONS),
     false,
   );
   assert.equal(
-    isAttendanceInputBlocked(
-      sameSession,
-      jakartaDate(9, 45, 1),
-      ATTENDANCE_RESTRICTIONS,
-    ),
+    shouldBlockAttendance(sameSession, jakartaDate(9, 45, 0), ATTENDANCE_RESTRICTIONS),
     true,
   );
 });
 
-test("akses URL absensi langsung dialihkan, route lain tidak", () => {
-  const afterDeadline = jakartaDate(9, 46);
+test("halaman penutupan mengenali waktu 10.30 sebagai waktu dibuka kembali", () => {
+  assert.equal(
+    shouldBlockAttendance(FMC_KELAS, jakartaDate(10, 29, 59), ATTENDANCE_RESTRICTIONS),
+    true,
+  );
+  assert.equal(
+    shouldBlockAttendance(FMC_KELAS, jakartaDate(10, 30, 0), ATTENDANCE_RESTRICTIONS),
+    false,
+  );
+  assert.equal(
+    shouldBlockAttendance(FMC_KELAS, jakartaDate(10, 31, 0), ATTENDANCE_RESTRICTIONS),
+    false,
+  );
+});
+
+test("akses URL absensi langsung dialihkan hanya selama rentang penutupan", () => {
+  assert.equal(
+    shouldBlockAttendanceRoute(
+      "attendance",
+      true,
+      FMC_KELAS,
+      jakartaDate(10, 0),
+      ATTENDANCE_RESTRICTIONS,
+    ),
+    true,
+  );
 
   assert.equal(
     shouldBlockAttendanceRoute(
       "attendance",
       true,
       FMC_KELAS,
-      afterDeadline,
+      jakartaDate(10, 30),
       ATTENDANCE_RESTRICTIONS,
     ),
-    true,
+    false,
   );
 
+  // Route lain tidak boleh terpengaruh.
   for (const routeName of [
     "login",
     "dashboard",
@@ -279,7 +340,7 @@ test("akses URL absensi langsung dialihkan, route lain tidak", () => {
         routeName,
         true,
         FMC_KELAS,
-        afterDeadline,
+        jakartaDate(10, 0),
         ATTENDANCE_RESTRICTIONS,
       ),
       false,
@@ -292,7 +353,7 @@ test("akses URL absensi langsung dialihkan, route lain tidak", () => {
       "attendance",
       true,
       OTHER_KELAS,
-      afterDeadline,
+      jakartaDate(10, 0),
       ATTENDANCE_RESTRICTIONS,
     ),
     false,
@@ -303,17 +364,21 @@ test("akses URL absensi langsung dialihkan, route lain tidak", () => {
       "attendance",
       false,
       FMC_KELAS,
-      afterDeadline,
+      jakartaDate(10, 0),
       ATTENDANCE_RESTRICTIONS,
     ),
     false,
   );
 });
 
-test("label deadline dan format tanggal/jam mengikuti konfigurasi", () => {
+test("label waktu dan format tanggal/jam mengikuti konfigurasi baru", () => {
   assert.equal(
-    getAttendanceDeadlineLabel(ATTENDANCE_RESTRICTIONS),
+    getAttendanceBlockedFromLabel(ATTENDANCE_RESTRICTIONS),
     "09.45",
+  );
+  assert.equal(
+    getAttendanceBlockedUntilLabel(ATTENDANCE_RESTRICTIONS),
+    "10.30",
   );
 
   const date = jakartaDate(9, 45, 7);

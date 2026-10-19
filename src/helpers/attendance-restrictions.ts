@@ -108,35 +108,46 @@ function getClockParts(date: Date, timeZone: string): ClockParts {
   return { hour, minute, second };
 }
 
-function getDeadlineParts(config: AttendanceRestrictionsConfig): {
-  hour: number;
-  minute: number;
-} {
-  const [hourPart, minutePart] = config.deadline.split(":");
-  const hour = Number(hourPart);
-  const minute = Number(minutePart);
+/**
+ * Mengubah konfigurasi waktu "HH:mm" menjadi detik sejak tengah malam.
+ * Nilai divalidasi agar kesalahan konfigurasi cepat terdeteksi.
+ */
+function parseTimeOfDay(value: string, fieldName: string): number {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
 
-  if (
-    !Number.isInteger(hour) ||
-    !Number.isInteger(minute) ||
-    hour < 0 ||
-    hour > 23 ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    throw new Error(`Batas waktu absensi tidak valid: "${config.deadline}"`);
+  if (!match) {
+    throw new Error(
+      `Konfigurasi ${fieldName} tidak valid: "${value}" (gunakan HH:mm)`,
+    );
   }
 
-  return { hour, minute };
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    throw new Error(
+      `Konfigurasi ${fieldName} tidak valid: "${value}" (gunakan HH:mm)`,
+    );
+  }
+
+  return hour * 3600 + minute * 60;
+}
+
+function getClockSeconds(date: Date, timeZone: string): number {
+  const { hour, minute, second } = getClockParts(date, timeZone);
+
+  return hour * 3600 + minute * 60 + second;
 }
 
 /**
- * True jika waktu sudah melewati batas.
+ * True jika waktu berada di dalam rentang penutupan.
  *
- * Tepat pada deadline (detik ke-0) masih dianggap BELUM lewat. Mulai detik
- * berikutnya (mis. 09:45:01) dianggap sudah lewat.
+ * `blockedFrom` inklusif dan `blockedUntil` eksklusif. Dengan konfigurasi
+ * 09:45–10:30, waktu 09:45:00 sampai 10:29:59 ditutup, sedangkan 10:30:00
+ * sudah dibuka kembali. Perbandingan memakai zona waktu konfigurasi, bukan
+ * zona waktu perangkat.
  */
-export function isAttendanceDeadlinePassed(
+export function isWithinAttendanceBlockedWindow(
   date: Date,
   config: AttendanceRestrictionsConfig,
 ): boolean {
@@ -144,22 +155,35 @@ export function isAttendanceDeadlinePassed(
     return false;
   }
 
-  const { hour, minute } = getDeadlineParts(config);
-  const deadlineSeconds = hour * 3600 + minute * 60;
-  const { hour: currentHour, minute: currentMinute, second: currentSecond } =
-    getClockParts(date, config.timezone);
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return false;
+  }
 
-  const currentSeconds =
-    currentHour * 3600 + currentMinute * 60 + currentSecond;
+  const blockedFrom = parseTimeOfDay(config.blockedFrom, "blockedFrom");
+  const blockedUntil = parseTimeOfDay(config.blockedUntil, "blockedUntil");
 
-  return currentSeconds > deadlineSeconds;
+  // Rentang kosong (mis. 10:30–10:30) dianggap tidak pernah menutup absensi.
+  if (blockedFrom === blockedUntil) {
+    return false;
+  }
+
+  const current = getClockSeconds(date, config.timezone);
+
+  // Mendukung rentang yang melewati tengah malam, meskipun konfigurasi saat
+  // ini tidak memakainya.
+  if (blockedFrom < blockedUntil) {
+    return current >= blockedFrom && current < blockedUntil;
+  }
+
+  return current >= blockedFrom || current < blockedUntil;
 }
 
 /**
  * Keputusan utama: blokir input absensi hanya jika fitur aktif, kelas
- * pengguna termasuk daftar dibatasi, dan batas waktu sudah terlewati.
+ * pengguna termasuk daftar dibatasi, dan waktu sekarang berada di dalam
+ * rentang penutupan.
  */
-export function isAttendanceInputBlocked(
+export function shouldBlockAttendance(
   kelas: readonly AttendanceClassLike[] | null | undefined,
   now: Date,
   config: AttendanceRestrictionsConfig,
@@ -170,8 +194,21 @@ export function isAttendanceInputBlocked(
 
   return (
     isAttendanceRestrictedKelas(kelas, config) &&
-    isAttendanceDeadlinePassed(now, config)
+    isWithinAttendanceBlockedWindow(now, config)
   );
+}
+
+/**
+ * Nama lama untuk `shouldBlockAttendance`, dipertahankan agar pemanggil
+ * lama tidak rusak. Logikanya kini mengikuti rentang waktu, bukan deadline
+ * permanen.
+ */
+export function isAttendanceInputBlocked(
+  kelas: readonly AttendanceClassLike[] | null | undefined,
+  now: Date,
+  config: AttendanceRestrictionsConfig,
+): boolean {
+  return shouldBlockAttendance(kelas, now, config);
 }
 
 /**
@@ -189,19 +226,34 @@ export function shouldBlockAttendanceRoute(
   return (
     routeName === "attendance" &&
     isLoggedIn &&
-    isAttendanceInputBlocked(kelas, now, config)
+    shouldBlockAttendance(kelas, now, config)
   );
 }
 
-/**
- * Label batas waktu untuk tampilan, mis. "09.45".
- */
-export function getAttendanceDeadlineLabel(
-  config: AttendanceRestrictionsConfig,
-): string {
-  const { hour, minute } = getDeadlineParts(config);
+function formatTimeOfDayLabel(value: string, fieldName: string): string {
+  const seconds = parseTimeOfDay(value, fieldName);
+  const hour = Math.floor(seconds / 3600);
+  const minute = Math.floor((seconds % 3600) / 60);
 
   return `${String(hour).padStart(2, "0")}.${String(minute).padStart(2, "0")}`;
+}
+
+/**
+ * Label waktu mulai penutupan untuk tampilan, mis. "09.45".
+ */
+export function getAttendanceBlockedFromLabel(
+  config: AttendanceRestrictionsConfig,
+): string {
+  return formatTimeOfDayLabel(config.blockedFrom, "blockedFrom");
+}
+
+/**
+ * Label waktu absensi dibuka kembali untuk tampilan, mis. "10.30".
+ */
+export function getAttendanceBlockedUntilLabel(
+  config: AttendanceRestrictionsConfig,
+): string {
+  return formatTimeOfDayLabel(config.blockedUntil, "blockedUntil");
 }
 
 /**

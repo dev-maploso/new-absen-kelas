@@ -5,7 +5,7 @@ import { useRouter } from "vue-router";
 import { useAttendanceStore } from "@/stores/attendance";
 import { useAuthStore } from "@/stores/auth";
 import { ATTENDANCE_RESTRICTIONS } from "@/config/attendance-restrictions";
-import { isAttendanceInputBlocked } from "@/helpers/attendance-restrictions";
+import { shouldBlockAttendance } from "@/helpers/attendance-restrictions";
 import { getTrustedNow } from "@/helpers/server-clock";
 
 import AttendanceFilter from "@/components/attendance/AttendanceFilter.vue";
@@ -29,31 +29,41 @@ const kelas = computed(() => auth.kelas);
 
 const scanEnabled = ref(false);
 
-let deadlineTimer: number | undefined;
+const now = ref(getTrustedNow());
 
-function stopDeadlineTimer() {
-  if (deadlineTimer !== undefined) {
-    window.clearInterval(deadlineTimer);
-    deadlineTimer = undefined;
+/**
+ * Status reaktif dipakai untuk menyembunyikan form/tombol submit segera
+ * setelah masuk periode penutupan.
+ */
+const attendanceBlocked = computed(() =>
+  shouldBlockAttendance(
+    kelas.value,
+    now.value,
+    ATTENDANCE_RESTRICTIONS,
+  ),
+);
+
+let restrictionTimer: number | undefined;
+
+function stopRestrictionTimer() {
+  if (restrictionTimer !== undefined) {
+    window.clearInterval(restrictionTimer);
+    restrictionTimer = undefined;
   }
 }
 
 /**
- * Pemeriksaan berkala agar halaman yang sudah terbuka sebelum deadline ikut
- * tertutup otomatis ketika batas waktu terlewati.
+ * Pemeriksaan berkala agar halaman yang sudah terbuka sebelum pukul 09.45
+ * ikut tertutup otomatis ketika rentang penutupan dimulai.
  */
-function enforceAttendanceDeadline() {
-  const blocked = isAttendanceInputBlocked(
-    kelas.value,
-    getTrustedNow(),
-    ATTENDANCE_RESTRICTIONS,
-  );
+function enforceAttendanceWindow() {
+  now.value = getTrustedNow();
 
-  if (!blocked) {
+  if (!attendanceBlocked.value) {
     return;
   }
 
-  stopDeadlineTimer();
+  stopRestrictionTimer();
   void router.replace({ name: "attendance-closed" });
 }
 
@@ -62,12 +72,15 @@ onMounted(() => {
     attendance.kelasId = kelas.value[0].id;
   }
 
-  enforceAttendanceDeadline();
-  deadlineTimer = window.setInterval(enforceAttendanceDeadline, 1000);
+  enforceAttendanceWindow();
+
+  if (!attendanceBlocked.value) {
+    restrictionTimer = window.setInterval(enforceAttendanceWindow, 1000);
+  }
 });
 
 onBeforeUnmount(() => {
-  stopDeadlineTimer();
+  stopRestrictionTimer();
 });
 
 async function loadAttendance() {
@@ -82,7 +95,20 @@ async function loadAttendance() {
 </script>
 
 <template>
-  <div class="space-y-6 pb-36">
+  <!--
+    Pengaman tambahan: saat status berubah menjadi ditutup, form dan tombol
+    submit langsung tidak dirender sebelum navigasi ke halaman penutupan.
+  -->
+  <div
+    v-if="attendanceBlocked"
+    class="flex min-h-[50vh] items-center justify-center"
+  >
+    <p class="text-center text-sm font-medium text-slate-600">
+      Absensi sedang ditutup sementara. Mengalihkan ke halaman informasi...
+    </p>
+  </div>
+
+  <div v-else class="space-y-6 pb-36">
     <!-- Filter -->
     <AttendanceFilter
       :kelas="kelas"

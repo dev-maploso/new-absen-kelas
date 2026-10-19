@@ -6,19 +6,44 @@ import { ATTENDANCE_RESTRICTIONS } from "@/config/attendance-restrictions";
 import {
   formatJakartaDate,
   formatJakartaTime,
-  getAttendanceDeadlineLabel,
+  getAttendanceBlockedFromLabel,
+  getAttendanceBlockedUntilLabel,
+  shouldBlockAttendance,
 } from "@/helpers/attendance-restrictions";
 import {
   getTrustedNow,
   isServerClockSynced,
 } from "@/helpers/server-clock";
+import { useAuthStore } from "@/stores/auth";
+
+const auth = useAuthStore();
 
 const now = ref(getTrustedNow());
 const timeSource = ref(
   isServerClockSynced() ? "Waktu server (WIB)" : "Waktu perangkat (WIB)",
 );
 
-const deadlineLabel = getAttendanceDeadlineLabel(ATTENDANCE_RESTRICTIONS);
+const blockedFromLabel = getAttendanceBlockedFromLabel(
+  ATTENDANCE_RESTRICTIONS,
+);
+const blockedUntilLabel = getAttendanceBlockedUntilLabel(
+  ATTENDANCE_RESTRICTIONS,
+);
+
+/**
+ * Reaktif terhadap jam yang terus diperbarui. Begitu pukul 10.30 WIB tiba,
+ * tombol kembali ke absensi otomatis muncul tanpa redirect paksa (menghindari
+ * redirect loop dengan router guard).
+ */
+const stillBlocked = computed(() =>
+  shouldBlockAttendance(
+    auth.kelas,
+    now.value,
+    ATTENDANCE_RESTRICTIONS,
+  ),
+);
+
+const canReturnToAttendance = computed(() => !stillBlocked.value);
 
 const currentDate = computed(() =>
   formatJakartaDate(now.value, ATTENDANCE_RESTRICTIONS),
@@ -60,11 +85,11 @@ onBeforeUnmount(() => {
         </div>
 
         <h1 class="mt-5 text-2xl font-bold text-slate-800 sm:text-3xl">
-          Absensi Telah Ditutup
+          Absensi Ditutup Sementara
         </h1>
 
         <p class="mt-3 text-sm text-slate-600 sm:text-base">
-          Waktu pengisian absensi untuk kelas Anda telah berakhir.
+          Pengisian absensi kelas Anda sedang ditutup sementara.
         </p>
       </div>
 
@@ -72,8 +97,26 @@ onBeforeUnmount(() => {
         <div
           class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-center text-sm font-medium text-amber-800 sm:text-base"
         >
-          Batas pengisian absensi adalah pukul
-          <span class="font-bold">{{ deadlineLabel }} WIB</span>.
+          Absensi akan dibuka kembali pukul
+          <span class="font-bold">{{ blockedUntilLabel }} WIB</span>.
+        </div>
+
+        <div
+          class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-xs text-slate-500 sm:text-sm"
+        >
+          Pembatasan sementara berlaku pukul
+          <span class="font-semibold text-slate-700">
+            {{ blockedFromLabel }}–{{ blockedUntilLabel }} WIB
+          </span>
+          untuk kelas yang diatur.
+        </div>
+
+        <div
+          v-if="canReturnToAttendance"
+          class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-center text-sm font-medium text-emerald-800 sm:text-base"
+        >
+          Absensi sudah dibuka kembali. Silakan lanjutkan pengisian absensi
+          seperti biasa.
         </div>
 
         <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 text-center">
@@ -97,6 +140,14 @@ onBeforeUnmount(() => {
             {{ timeSource }}
           </p>
         </div>
+
+        <RouterLink
+          v-if="canReturnToAttendance"
+          :to="{ name: 'attendance' }"
+          class="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+        >
+          Kembali ke Absensi
+        </RouterLink>
 
         <RouterLink
           :to="{ name: 'dashboard' }"
